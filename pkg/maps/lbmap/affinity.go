@@ -43,7 +43,7 @@ var (
 				return nil, nil, err
 			}
 
-			return aKey, aVal, nil
+			return aKey.ToNetwork(), aVal, nil
 		}).WithCache()
 )
 
