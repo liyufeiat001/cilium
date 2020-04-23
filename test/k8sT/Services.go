@@ -764,7 +764,7 @@ var _ = Describe("K8sServicesTest", func() {
 				res, err := kubectl.ExecInHostNetNS(context.TODO(), externalNodeName, cmd)
 				Expect(err).Should(BeNil(), "Cannot exec in %s host netns", externalNodeName)
 				ExpectWithOffset(1, res).Should(helpers.CMDSuccess(),
-					"Can not connect to service %q from outside cluster", httpURL)
+					"Can not connect to service %q from outside cluster (%d/%d)", httpURL, i, count)
 				pod := strings.TrimSpace(strings.Split(res.GetStdOut(), ": ")[1])
 				if i == 1 {
 					// Retrieve the destination pod from the first request
@@ -778,12 +778,13 @@ var _ = Describe("K8sServicesTest", func() {
 			// Delete the pod, and check that a new backend is chosen
 			kubectl.DeleteResource("pod", dstPod).ExpectSuccess("Unable to delete %s pod", dstPod)
 			kubectl.WaitPodDeleted(dstPod)
+			time.Sleep(2 * time.Second)
 
 			for i := 1; i <= count; i++ {
 				res, err := kubectl.ExecInHostNetNS(context.TODO(), externalNodeName, cmd)
 				Expect(err).Should(BeNil(), "Cannot exec in %s host netns", externalNodeName)
 				ExpectWithOffset(1, res).Should(helpers.CMDSuccess(),
-					"Can not connect to service %q from outside cluster", httpURL)
+					"Can not connect to service %q from outside cluster (%d/%d) after restart", httpURL)
 				pod := strings.TrimSpace(strings.Split(res.GetStdOut(), ": ")[1])
 				if i == 1 {
 					// Retrieve the destination pod from the first request
@@ -802,9 +803,9 @@ var _ = Describe("K8sServicesTest", func() {
 			ExpectWithOffset(1, err).Should(BeNil(), "cannot retrieve pod names by filter %q", testDSClient)
 
 			for i := 1; i <= count; i++ {
-				res := kubectl.ExecPodCmd(helpers.DefaultNamespace, pods[0], cmd)
+				res := kubectl.ExecPodCmd(helpers.DefaultNamespace, pods[1], cmd)
 				ExpectWithOffset(1, res).Should(helpers.CMDSuccess(),
-					"Pod %q can not connect to service %q", pods[0], httpURL)
+					"Pod %q can not connect to service %q (%d/%d)", pods[1], httpURL, i, count)
 				pod := strings.TrimSpace(strings.Split(res.GetStdOut(), ": ")[1])
 				if i == 1 {
 					// Retrieve the destination pod from the first request
@@ -818,22 +819,38 @@ var _ = Describe("K8sServicesTest", func() {
 			// Again, delete the backend and check that new is chosen
 			kubectl.DeleteResource("pod", dstPod).ExpectSuccess("Unable to delete %s pod", dstPod)
 			kubectl.WaitPodDeleted(dstPod)
+			// TODO(brb) ^^ double check, and wait for endpoint deletion instead?
+			time.Sleep(2 * time.Second)
 
 			for i := 1; i <= count; i++ {
-				res, err := kubectl.ExecInHostNetNS(context.TODO(), externalNodeName, cmd)
-				Expect(err).Should(BeNil(), "Cannot exec in %s host netns", externalNodeName)
+				res := kubectl.ExecPodCmd(helpers.DefaultNamespace, pods[1], cmd)
 				ExpectWithOffset(1, res).Should(helpers.CMDSuccess(),
-					"Can not connect to service %q from outside cluster", httpURL)
+					"Pod %q can not connect to service %q (%d/%d)", pods[1], httpURL, i, count)
 				pod := strings.TrimSpace(strings.Split(res.GetStdOut(), ": ")[1])
 				if i == 1 {
 					// Retrieve the destination pod from the first request
-					Expect(dstPod).ShouldNot(Equal(pod))
 					dstPod = pod
 				} else {
 					// Check that destination pod is always the same
 					Expect(dstPod).To(Equal(pod))
 				}
 			}
+
+			//for i := 1; i <= count; i++ {
+			//	res, err := kubectl.ExecInHostNetNS(context.TODO(), externalNodeName, cmd)
+			//	Expect(err).Should(BeNil(), "Cannot exec in %s host netns", externalNodeName)
+			//	ExpectWithOffset(1, res).Should(helpers.CMDSuccess(),
+			//		"Pod %q can not connect to service %q (%d/%d) after restart", pods[1], httpURL, i, count)
+			//	pod := strings.TrimSpace(strings.Split(res.GetStdOut(), ": ")[1])
+			//	if i == 1 {
+			//		// Retrieve the destination pod from the first request
+			//		Expect(dstPod).ShouldNot(Equal(pod))
+			//		dstPod = pod
+			//	} else {
+			//		// Check that destination pod is always the same
+			//		Expect(dstPod).To(Equal(pod))
+			//	}
+			//}
 		}
 
 		testExternalTrafficPolicyLocal := func() {

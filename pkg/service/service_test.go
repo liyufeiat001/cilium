@@ -210,6 +210,7 @@ func (m *ManagerTestSuite) TestRestoreServices(c *C) {
 
 }
 
+// TODO(brb) check that affinities are restored!!!
 func (m *ManagerTestSuite) TestSyncWithK8sFinished(c *C) {
 	_, _, err := m.svc.UpsertService(frontend1, backends1, lb.SVCTypeNodePort, lb.SVCTrafficPolicyCluster, false, 0, 0, "", "")
 	c.Assert(err, IsNil)

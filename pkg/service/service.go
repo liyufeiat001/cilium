@@ -246,6 +246,8 @@ func (s *Service) UpsertService(
 		backendsCopy = append(backendsCopy, *b.DeepCopy())
 	}
 
+	fmt.Println("!!!", prevSessionAffinity, sessionAffinity)
+
 	if prevSessionAffinity && !sessionAffinity {
 		// Remove backends from the affinity match because the svc's sessionAffinity
 		// has been disabled
@@ -358,6 +360,9 @@ func (s *Service) GetDeepCopyServices() []*lb.SVC {
 func (s *Service) RestoreServices() error {
 	s.Lock()
 	defer s.Unlock()
+
+	matches, err := s.lbmap.DumpAffinityMatches()
+	fmt.Println("!!! ", matches, err)
 
 	// Restore backend IDs
 	if err := s.restoreBackendsLocked(); err != nil {
@@ -520,6 +525,11 @@ func (s *Service) deleteBackendsFromAffinityMatchMap(svcID lb.ID, backendIDs []l
 		return
 	}
 
+	log.WithFields(logrus.Fields{
+		logfields.Backends:  backendIDs,
+		logfields.ServiceID: svcID,
+	}).Info("!!! deleteBackendsFromAffinityMatchMap")
+
 	for _, bID := range backendIDs {
 		if err := s.lbmap.DeleteAffinityMatch(uint16(svcID), uint16(bID)); err != nil {
 			log.WithFields(logrus.Fields{
@@ -534,6 +544,11 @@ func (s *Service) addBackendsToAffinityMatchMap(svcID lb.ID, backendIDs []lb.Bac
 	if !option.Config.EnableSessionAffinity {
 		return
 	}
+
+	log.WithFields(logrus.Fields{
+		logfields.Backends:  backendIDs,
+		logfields.ServiceID: svcID,
+	}).Info("!!! addBackendsToAffinityMatchMap")
 
 	for _, bID := range backendIDs {
 		if err := s.lbmap.AddAffinityMatch(uint16(svcID), uint16(bID)); err != nil {
@@ -693,6 +708,8 @@ func (s *Service) restoreServicesLocked() error {
 		restored++
 	}
 
+	// TODO(brb) session affinity??????????
+
 	log.WithFields(logrus.Fields{
 		"restored": restored,
 		"failed":   failed,
@@ -716,6 +733,7 @@ func (s *Service) deleteServiceLocked(svc *svcInfo) error {
 	}
 
 	// Delete affinity matches
+	// TODO(brb) double check!!!
 	if svc.sessionAffinity {
 		backendIDs := make([]lb.BackendID, 0, len(svc.backendByHash))
 		for _, backend := range svc.backendByHash {
