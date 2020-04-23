@@ -274,8 +274,8 @@ func (s *Service) UpsertService(
 
 	if sessionAffinity {
 		// Remove the removed backends from the affinity match, and add the new ones
-		s.addBackendsToAffinityMatchMap(svc.frontend.ID, newSVCBackendIDs)
 		s.deleteBackendsFromAffinityMatchMap(svc.frontend.ID, removedSVCBackendIDs)
+		s.addBackendsToAffinityMatchMap(svc.frontend.ID, newSVCBackendIDs)
 	}
 
 	// Update lbmaps (BPF service maps)
